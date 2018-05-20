@@ -30,6 +30,9 @@ float heightN,heightP=0.0f;
 
 nav_msgs::Odometry msgP;
 
+int itr=1;
+float heightI=0.0f;
+
 Mat image_prev,image_next;
 vector<Point2f> points[2];
 float focal;
@@ -55,8 +58,11 @@ void cpolar(float x, float y, float *r, float *theta)//converts cartesian to pol
 void heightCallback(const nav_msgs::Odometry::ConstPtr& msg)//accepts height 
 {
     msgP.header.stamp = ros::Time::now();
-    msgP.header.frame_id = "map"; 
-    heightN=msg->pose.pose.position.z;
+    msgP.header.frame_id = "map";
+    heightN=(msg->pose.pose.position.z)-heightI;
+
+    if(itr) heightI=heightN;
+
     if(heightP==0.0f)
         heightP=heightN;
 }
@@ -200,7 +206,12 @@ void compute()
     float finalA=findMeanA(&cord);
         
     displacmentX+=finalR*cos(finalA);
-    displacmentY+=finalR*sin(finalA);        
+    displacmentY+=finalR*sin(finalA); 
+
+    cout<<"focal "<<focal<<endl;
+    if( isnan((displacmentX*heightN)/focal) || isnan((displacmentX*heightN)/focal) )
+        return;
+    cout<<"Found1 "<<cord.size()<<" dispX "<<((displacmentX*heightN)/focal)<<" dispY "<<((displacmentX*heightN)/focal)<<endl;       
 
     std::swap(points[0],points[1]);
     image_prev=image_next.clone();
@@ -242,6 +253,9 @@ int main(int argc, char **argv)
             //cout<<"In if\n";
             continue;
         }
+        if(itr)
+            itr-=1;
+        //cout<<"height I = "<<heightI<<endl;
         compute();
     }
 }
