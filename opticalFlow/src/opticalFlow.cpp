@@ -55,13 +55,14 @@ void cpolar(float x, float y, float *r, float *theta)//converts cartesian to pol
    return;
 }
 
-void heightCallback(const nav_msgs::Odometry::ConstPtr& msg)//accepts height 
+void heightCallback(const geometry_msgs::PoseStamped::ConstPtr& msg)//accepts height 
 {
     msgP.header.stamp = ros::Time::now();
     msgP.header.frame_id = "map";
-    heightN=(msg->pose.pose.position.z)-heightI;
+    heightN=(msg->pose.position.z);//-heightI;
 
-    if(itr) heightI=heightN;
+    //if(itr) heightI=heightN;
+    heightI=0.0f;
 
     if(heightP==0.0f)
         heightP=heightN;
@@ -82,7 +83,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msgS)//accepts image
         roi.height=(int)(image_next.rows*.75f);
         roi.x=(int)(image_next.cols*.125f);
         roi.y=(int)(image_next.rows*.125f);
-        image_next=image_next(roi);
+        //image_next=image_next(roi);
 
     	if(image_next.empty()) return;
 
@@ -174,7 +175,7 @@ void compute()
 
             if(heightP!=heightN)
             {
-                float radiusR = sqrt(pow(points[0][i].x-centreI.x,2)+pow(points[0][i].y-centreI.y,2))*(heightP-heightN)/heightN;
+                float radiusR = sqrt(pow(points[0][i].x-centreI.x,2)+pow(points[0][i].y-centreI.y,2))*((heightP-heightN)/heightN);
                 float radXh = radiusR*cos(atan2(points[0][i].y-centreI.y,points[0][i].x-centreI.x));
                 float radYh = radiusR*sin(atan2(points[0][i].y-centreI.y,points[0][i].x-centreI.x));
 
@@ -211,7 +212,7 @@ void compute()
     cout<<"focal "<<focal<<endl;
     if( isnan((displacmentX*heightN)/focal) || isnan((displacmentX*heightN)/focal) )
         return;
-    cout<<"Found1 "<<cord.size()<<" dispX "<<((displacmentX*heightN)/focal)<<" dispY "<<((displacmentX*heightN)/focal)<<endl;       
+    cout<<"Found1 "<<cord.size()<<" dispX "<<((displacmentX*heightN)/focal)<<" dispY "<<((displacmentY*heightN)/focal)<<endl;       
 
     std::swap(points[0],points[1]);
     image_prev=image_next.clone();
@@ -241,8 +242,8 @@ int main(int argc, char **argv)
 
 	NodeHandle nh;
 	image_transport::ImageTransport it(nh);
-	sub = it.subscribe("/camera/image_decompressed", 10, imageCallback);
-    sub2= nh.subscribe("/mavros/local_position/odom",10, heightCallback);
+	sub = it.subscribe("/iarc/camera/right/image_raw", 10, imageCallback);
+    sub2= nh.subscribe("/mavros/local_position/pose",10, heightCallback);
   	pub = nh.advertise<nav_msgs::Odometry>("/myodometry", 50);
   	while(ros::ok())
     {
