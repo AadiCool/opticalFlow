@@ -24,11 +24,14 @@ using namespace cv_bridge;
 using namespace cv;
 
 image_transport::Subscriber sub;
+image_transport::Subscriber sub3;
 Publisher pub;
 Subscriber sub2;
 float heightN,heightP=0.0f;
 
 nav_msgs::Odometry msgP;
+
+Mat bot_mask;// the binary image containing the bots only
 
 int itr=1;
 float heightI=0.0f;
@@ -59,6 +62,7 @@ void heightCallback(const geometry_msgs::PoseStamped::ConstPtr& msg)//accepts he
 {
     msgP.header.stamp = ros::Time::now();
     msgP.header.frame_id = "map";
+    //heightN=heightP=1.6f;
     heightN=(msg->pose.position.z);//-heightI;
 
     //if(itr) heightI=heightN;
@@ -66,6 +70,15 @@ void heightCallback(const geometry_msgs::PoseStamped::ConstPtr& msg)//accepts he
 
     if(heightP==0.0f)
         heightP=heightN;
+}
+
+void botCallback(const sensor_msgs::ImageConstPtr& msgS)
+{
+    bot_mask=(toCvCopy(msgS, "mono8")->image).clone();
+    Mat element = getStructuringElement( MORPH_RECT,Size( 2*1 + 1, 2*1+1 ),Point( 1, 1 ) );
+    erode(bot_mask,bot_mask,element);
+    dilate(bot_mask,bot_mask,element);
+    dilate(bot_mask,bot_mask,element);
 }
 
 
@@ -81,8 +94,8 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msgS)//accepts image
 
         roi.width=(int)(image_next.cols*.75f);
         roi.height=(int)(image_next.rows*.75f);
-        roi.x=(int)(image_next.cols*.125f);
-        roi.y=(int)(image_next.rows*.125f);
+        roi.x=0;//(int)(image_next.cols*.125f);
+        roi.y=0;//(int)(image_next.rows*.125f);
         //image_next=image_next(roi);
 
     	if(image_next.empty()) return;
@@ -168,7 +181,7 @@ void compute()
 
     for(int i=0;i<points[0].size();i++)
     {   
-        if(status[i])
+        if(status[i])// && (bot_mask.at<uchar>(points[1][i].y,points[1][i].x)!=255))
         {
             diffX=points[0][i].x-points[1][i].x;
             diffY=points[0][i].y-points[1][i].y;
@@ -244,6 +257,8 @@ int main(int argc, char **argv)
 	image_transport::ImageTransport it(nh);
 	sub = it.subscribe("/iarc/camera/right/image_raw", 10, imageCallback);
     sub2= nh.subscribe("/mavros/local_position/pose",10, heightCallback);
+    //sub3=it.subscribe("//topic",10,botCallback);
+    heightN=heightP=1.6f;
   	pub = nh.advertise<nav_msgs::Odometry>("/myodometry", 50);
   	while(ros::ok())
     {
